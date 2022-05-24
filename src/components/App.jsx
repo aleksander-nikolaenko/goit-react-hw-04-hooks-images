@@ -39,7 +39,7 @@ export class App extends Component {
     const { query, page } = this.state;
 
     try {
-      this.setState({ status: state.PENDING });
+      this.setState({ status: state.PENDING }, this.smoothScroll);
 
       await fetchPictures(query, page).then(data => {
         const getData = data.data.hits;
@@ -75,12 +75,6 @@ export class App extends Component {
         draggable: true,
         progress: undefined,
       });
-    } finally {
-      // this.setState({ status: state.RESOLVED });
-
-      if (page > 1) {
-        setTimeout(this.smoothScroll, 250);
-      }
     }
   };
 
@@ -144,7 +138,15 @@ export class App extends Component {
             {status === state.RESOLVED && page < totalPages && (
               <Button loadMore={this.handlerLoadMore} />
             )}
-            {status === state.PENDING && <Loader />}
+            {status === state.PENDING && (
+              <>
+                <ImageGallery
+                  images={searchItems}
+                  onClickImg={this.openModal}
+                />
+                <Loader />
+              </>
+            )}
           </Container>
         </main>
 
