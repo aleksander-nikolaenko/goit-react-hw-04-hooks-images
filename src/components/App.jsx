@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import { useEffect, useState } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { fetchPictures } from '../services/pixabayAPI';
@@ -9,42 +9,36 @@ import { Loader } from './Loader';
 import { Searchbar } from './Searchbar';
 import styles from './App.module.css';
 import { Modal } from './Modal';
+
 const state = {
   IDLE: 'idle',
   PENDING: 'pending',
   RESOLVED: 'resolved',
   REJECTED: 'rejected',
 };
-export class App extends Component {
-  state = {
-    query: '',
-    status: state.IDLE,
-    searchItems: [],
-    page: 1,
-    totalPages: 0,
-    isOpen: false,
-    LargeImgSrc: '',
-    LargeImgAlt: '',
-  };
 
-  componentDidUpdate(prevProps, prevState) {
-    const { query, page } = this.state;
+export const App = () => {
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState(state.IDLE);
+  const [searchItems, setSearchItems] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+  const [LargeImgSrc, setLargeImgSrc] = useState('');
+  const [LargeImgAlt, setLargeImgAlt] = useState('');
 
-    if (prevState.query !== query || prevState.page !== page) {
-      this.fetchImages();
-    }
-  }
+  useEffect(() => {
+    if (query === '') return;
+    fetchImages();
+  }, [query, page]);
 
-  fetchImages = async () => {
-    const { query, page } = this.state;
-
+  const fetchImages = async () => {
     try {
-      this.setState({ status: state.PENDING }, this.smoothScroll);
-
+      setStatus(state.PENDING);
       await fetchPictures(query, page).then(data => {
         const getData = data.data.hits;
         if (getData.length === 0) {
-          this.setState({ status: state.REJECTED });
+          setStatus(state.REJECTED);
           toast.error(
             'Sorry, there are no images matching your search query. Please try again.',
             {
@@ -58,11 +52,10 @@ export class App extends Component {
             }
           );
         } else {
-          this.setState(prevState => ({
-            searchItems: [...prevState.searchItems, ...getData],
-            totalPages: Math.ceil(data.data.totalHits / 12),
-            status: state.RESOLVED,
-          }));
+          setSearchItems(prevState => [...prevState, ...getData]);
+          setTotalPages(Math.ceil(data.data.totalHits / 12));
+          setStatus(state.RESOLVED);
+          if (page > 1) smoothScroll();
         }
       });
     } catch (error) {
@@ -78,7 +71,7 @@ export class App extends Component {
     }
   };
 
-  smoothScroll = () => {
+  const smoothScroll = () => {
     let scrollHeight = document.documentElement.scrollHeight;
     window.scrollTo({
       top: scrollHeight,
@@ -86,89 +79,82 @@ export class App extends Component {
     });
   };
 
-  onFormSubmit = query => {
-    this.setState({ query, page: 1, searchItems: [] });
+  const onFormSubmit = q => {
+    if (query === q) {
+      toast.warn("We're sorry, please enter a different query.", {
+        position: 'top-right',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      return;
+    }
+    setQuery(q);
+    setPage(1);
+    setSearchItems([]);
   };
 
-  handlerLoadMore = () => {
-    const { page } = this.state;
-    this.setState({ page: page + 1 });
+  const handlerLoadMore = () => {
+    setPage(prevState => prevState + 1);
   };
 
-  openModal = (img, alt) => {
-    const LargeImgAlt = alt;
-    const LargeImgSrc = img;
-
-    this.setState({ LargeImgAlt, LargeImgSrc, isOpen: true });
+  const openModal = (img, alt) => {
+    setLargeImgAlt(alt);
+    setLargeImgSrc(img);
+    setIsOpen(true);
   };
 
-  closeModal = () => {
-    this.setState({ isOpen: false });
+  const closeModal = () => {
+    setIsOpen(false);
   };
 
-  render() {
-    const {
-      searchItems,
-      status,
-      totalPages,
-      page,
-      isOpen,
-      LargeImgSrc,
-      LargeImgTag,
-    } = this.state;
+  return (
+    <>
+      <Searchbar onSubmit={onFormSubmit} />
+      <main>
+        <Container>
+          {status === state.IDLE && (
+            <div className={styles.notification}>
+              Gallery is empty, search for images.
+            </div>
+          )}
+          {status === state.REJECTED && (
+            <div className={styles.notification}>
+              Gallery is empty, search for images.
+            </div>
+          )}
+          {status === state.RESOLVED && (
+            <ImageGallery images={searchItems} onClickImg={openModal} />
+          )}
+          {status === state.RESOLVED && page < totalPages && (
+            <Button loadMore={handlerLoadMore} />
+          )}
+          {status === state.PENDING && (
+            <>
+              <ImageGallery images={searchItems} onClickImg={openModal} />
+              <Loader />
+            </>
+          )}
+        </Container>
+      </main>
 
-    return (
-      <>
-        <Searchbar onSubmit={this.onFormSubmit} />
-        <main>
-          <Container>
-            {status === state.IDLE && (
-              <div className={styles.notification}>
-                Gallery is empty, search for images.
-              </div>
-            )}
-            {status === state.REJECTED && (
-              <div className={styles.notification}>
-                Gallery is empty, search for images.
-              </div>
-            )}
-            {status === state.RESOLVED && (
-              <ImageGallery images={searchItems} onClickImg={this.openModal} />
-            )}
-            {status === state.RESOLVED && page < totalPages && (
-              <Button loadMore={this.handlerLoadMore} />
-            )}
-            {status === state.PENDING && (
-              <>
-                <ImageGallery
-                  images={searchItems}
-                  onClickImg={this.openModal}
-                />
-                <Loader />
-              </>
-            )}
-          </Container>
-        </main>
-
-        {isOpen && (
-          <Modal
-            onClose={this.closeModal}
-            src={LargeImgSrc}
-            alt={LargeImgTag}
-          />
-        )}
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
-      </>
-    );
-  }
-}
+      {isOpen && (
+        <Modal onClose={closeModal} src={LargeImgSrc} alt={LargeImgAlt} />
+      )}
+      <ToastContainer
+        position="bottom-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+    </>
+  );
+};
