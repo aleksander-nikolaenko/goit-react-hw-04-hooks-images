@@ -28,48 +28,48 @@ export const App = () => {
   const [LargeImgAlt, setLargeImgAlt] = useState('');
 
   useEffect(() => {
+    const fetchImages = async () => {
+      try {
+        setStatus(state.PENDING);
+        await fetchPictures(query, page).then(data => {
+          const getData = data.data.hits;
+          if (getData.length === 0) {
+            setStatus(state.REJECTED);
+            toast.error(
+              'Sorry, there are no images matching your search query. Please try again.',
+              {
+                position: 'top-right',
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+              }
+            );
+          } else {
+            setSearchItems(prevState => [...prevState, ...getData]);
+            setTotalPages(Math.ceil(data.data.totalHits / 12));
+            setStatus(state.RESOLVED);
+            if (page > 1) smoothScroll();
+          }
+        });
+      } catch (error) {
+        toast.warn("We're sorry, the search didn't return any results.", {
+          position: 'top-right',
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
+      }
+    };
+
     if (query === '') return;
     fetchImages();
   }, [query, page]);
-
-  const fetchImages = async () => {
-    try {
-      setStatus(state.PENDING);
-      await fetchPictures(query, page).then(data => {
-        const getData = data.data.hits;
-        if (getData.length === 0) {
-          setStatus(state.REJECTED);
-          toast.error(
-            'Sorry, there are no images matching your search query. Please try again.',
-            {
-              position: 'top-right',
-              autoClose: 3000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-              progress: undefined,
-            }
-          );
-        } else {
-          setSearchItems(prevState => [...prevState, ...getData]);
-          setTotalPages(Math.ceil(data.data.totalHits / 12));
-          setStatus(state.RESOLVED);
-          if (page > 1) smoothScroll();
-        }
-      });
-    } catch (error) {
-      toast.warn("We're sorry, the search didn't return any results.", {
-        position: 'top-right',
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
-    }
-  };
 
   const smoothScroll = () => {
     let scrollHeight = document.documentElement.scrollHeight;
